@@ -1,0 +1,10 @@
+CREATE TABLE products (
+    id UUID PRIMARY KEY,
+    slug VARCHAR(255) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    brand VARCHAR(255) NOT NULL,
+    shape VARCHAR(255) NOT NULL,
+    color VARCHAR(255) NOT NULL,
+    price NUMERIC(38, 2) NOT NULL CHECK (price >= 0),
+    currency VARCHAR(255) NOT NULL
+);

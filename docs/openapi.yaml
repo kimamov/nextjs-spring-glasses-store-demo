@@ -1,0 +1,98 @@
+openapi: 3.0.3
+info:
+  title: Vision Aids Store API
+  version: 0.1.0
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/products:
+    get:
+      operationId: listProducts
+      summary: List the demo catalog ordered by product name
+      parameters:
+        - name: cat
+          in: query
+          required: false
+          description: Filter by product type. Omit to return all products.
+          schema:
+            type: string
+            enum: [eyeglasses, sunglasses, reading-glasses, sports-glasses]
+      responses:
+        '200':
+          description: Matching products, or an empty array when none match
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '400':
+          description: Unsupported product type, including an empty cat value
+components:
+  schemas:
+    Product:
+      type: object
+      required: [id, slug, name, brand, type, shape, color, price, currency, images]
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+          example: mitte
+        name:
+          type: string
+          example: Mitte
+        brand:
+          type: string
+          example: Vision Aids
+        type:
+          type: string
+          enum: [eyeglasses, sunglasses, reading-glasses, sports-glasses]
+          example: eyeglasses
+        shape:
+          type: string
+          example: Round
+        color:
+          type: string
+          example: Tortoiseshell
+        price:
+          type: number
+          minimum: 0
+          description: Frame-only price in major currency units
+          example: 89.00
+        currency:
+          type: string
+          example: EUR
+        images:
+          type: array
+          description: Ordered gallery. Empty when no images exist; otherwise exactly one image is the main thumbnail.
+          items:
+            $ref: '#/components/schemas/ProductImage'
+    ProductImage:
+      type: object
+      required: [url, altText, width, height, mainThumbnail, rotatingThumbnail]
+      properties:
+        url:
+          type: string
+          description: Image URL; sample images use paths relative to the storefront origin.
+          example: /images/products/misterspex-6536001-a.jpg
+        altText:
+          type: string
+          description: Accessible description of this image.
+        width:
+          type: integer
+          minimum: 1
+          description: Intrinsic width of the source file in pixels, independent of rendered size.
+          example: 500
+        height:
+          type: integer
+          minimum: 1
+          description: Intrinsic height of the source file in pixels, independent of rendered size.
+          example: 332
+        mainThumbnail:
+          type: boolean
+          description: Exactly one image per nonempty gallery has this set to true.
+        rotatingThumbnail:
+          type: boolean
+          description: Include in future thumbnail rotation, in gallery order. Independent of mainThumbnail; any subset, including none, is allowed.

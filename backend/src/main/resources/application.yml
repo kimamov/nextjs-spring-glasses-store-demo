@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: vision-aids-store
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/vision_aids}
+    username: ${DB_USERNAME:vision_aids}
+    password: ${DB_PASSWORD:vision_aids}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+server:
+  port: ${PORT:8080}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never

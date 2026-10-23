@@ -1,0 +1,132 @@
+# Vision Aids
+
+A small eyewear store for learning advanced Next.js with a Java backend.
+
+The catalog renders 60 fictional frames from PostgreSQL through a Spring REST API
+and a Next.js Server Component. Filter by eyeglasses, sunglasses, reading glasses,
+or sports glasses using URL query parameters, for example `/glasses?cat=sunglasses`.
+Checkout, accounts, lens configuration, and payments are not implemented yet.
+Products support ordered images with a main thumbnail and independent rotation
+selections. Catalog cards show only the main image, with a placeholder when it is
+missing or unavailable. Two demo frames have local Mister Spex sample photos;
+see [image sources and selection rules](docs/product-images.md).
+
+## Structure
+
+```text
+backend/     Java 21, Spring Boot 4.0.8, Maven, Spring MVC, JPA, Flyway
+frontend/    Next.js 16.4.2, React 19, TypeScript, Tailwind CSS, ESLint
+docs/        Architecture decisions and API contract
+compose.yaml PostgreSQL 17 and both applications
+```
+
+## Run everything with Docker
+
+Requires Docker Engine/Desktop with Docker Compose v2, plus network access for
+the first build. Java, Maven, and Node are supplied by the container images.
+
+```bash
+docker compose up --build
+```
+
+Open http://localhost:3000. The backend is at http://localhost:8080.
+The backend waits for PostgreSQL; the frontend may briefly show an unavailable
+message while Spring starts. Reload after the backend is ready.
+
+```bash
+curl --fail http://localhost:8080/actuator/health
+curl --fail http://localhost:8080/api/v1/products
+curl --fail 'http://localhost:8080/api/v1/products?cat=sunglasses'
+```
+
+Stop with `docker compose down`. Database data persists in a named volume.
+Compose is configured for local development with local database credentials.
+
+## Run with hot reload
+
+Requires Node.js 26.12.1, npm, JDK 21, Maven 3.9+, and Docker for PostgreSQL.
+If you manage Node with nvm, run these commands from the repository root:
+
+```bash
+nvm install
+nvm use
+```
+
+The `.nvmrc`, frontend package engines, Node type definitions, and frontend
+Docker stages target Node 26. Next.js 16.4.2 is the stable npm release verified
+on 22 October 2026; its declared Node requirement (`>=20.9.0`) includes Node 26.
+
+Start the database from the repository root:
+
+```bash
+docker compose up -d db
+```
+
+In a second terminal:
+
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+In a third terminal:
+
+```bash
+cd frontend
+npm ci
+cp .env.example .env.local
+npm run dev
+```
+
+`frontend/.env.local` can override `BACKEND_URL` (default `http://localhost:8080`).
+Spring accepts `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and `PORT`; its defaults
+match the database in Compose. Set these in your shell or IDE run configuration.
+
+## Checks
+
+```bash
+cd frontend
+npm run lint
+npm run typecheck
+npm run build
+```
+
+```bash
+cd backend
+mvn verify
+```
+
+The controller tests run without a database. The backend Docker build also runs
+them. A complete smoke check needs PostgreSQL and both running applications:
+the API should return 60 frames (15 per type), and the storefront should show
+their names, types, and prices. Unsupported `cat` values return HTTP 400.
+No mock catalog is substituted when the backend is unavailable.
+
+Database image constraints have a separate SQL check. After applying the Flyway
+migrations to a disposable PostgreSQL database, run
+`psql -v ON_ERROR_STOP=1 -f backend/src/test/sql/product_images.sql` from the
+repository root with connection settings for that database. It rolls back its
+test data and checks main-thumbnail uniqueness, thumbnail replacement, independent
+rotation selections, and image deletion.
+
+## Starter choice
+
+Spring Initializr's published dependency catalog has no Next.js starter. This
+backend follows the official Spring REST service starter, with Web MVC,
+Validation, Data JPA, Flyway, PostgreSQL, and Actuator added. The frontend uses
+the standard Next.js App Router structure with TypeScript, Tailwind, and ESLint.
+
+The scaffolds were assembled locally from those official conventions because
+this workspace could not download the Initializr ZIP or run create-next-app.
+Spring Boot 4.0.8 matches the official REST guide used as the baseline.
+Next.js and eslint-config-next are pinned together at 16.4.2, replacing the
+initial cached 16.2.6 baseline after checking the stable npm release and the
+October security update. React and React DOM remain aligned at 19.2.7.
+
+- [Spring Initializr dependency catalog](https://github.com/spring-io/start.spring.io/blob/main/start-site/src/main/resources/application.yml)
+- [Spring REST service starter](https://spring.io/guides/gs/rest-service/)
+- [Next.js installation guide](https://nextjs.org/docs/app/getting-started/installation)
+- [Next.js stable package metadata](https://registry.npmjs.org/next/latest)
+- [Next.js October security update](https://nextjs.org/blog/nextjs-security-update-october-14-2026)
+- [Architecture and next steps](docs/architecture.md)
+- [Initial API contract](docs/openapi.yaml)
