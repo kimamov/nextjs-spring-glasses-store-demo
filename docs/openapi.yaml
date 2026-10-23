@@ -9,6 +9,7 @@ paths:
     get:
       operationId: listProducts
       summary: List the demo catalog ordered by product name
+      description: Filters run in the database. Choices within a brand or shape group match any value; different groups combine with AND.
       parameters:
         - name: cat
           in: query
@@ -17,6 +18,38 @@ paths:
           schema:
             type: string
             enum: [eyeglasses, sunglasses, reading-glasses, sports-glasses]
+        - name: brand
+          in: query
+          description: Brand choices from /api/v1/products/filters. Comma-separated or repeated values are supported.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: shape
+          in: query
+          description: Frame shape choices from /api/v1/products/filters. Comma-separated or repeated values are supported.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: minPrice
+          in: query
+          description: Inclusive minimum EUR price in decimal notation, with at most two decimal places. Omit for no lower bound.
+          schema:
+            type: number
+            minimum: 0
+            multipleOf: 0.01
+        - name: maxPrice
+          in: query
+          description: Inclusive maximum EUR price in decimal notation, with at most two decimal places. Must be at least minPrice. Omit for no upper bound.
+          schema:
+            type: number
+            minimum: 0
+            multipleOf: 0.01
       responses:
         '200':
           description: Matching products, or an empty array when none match
@@ -27,9 +60,56 @@ paths:
                 items:
                   $ref: '#/components/schemas/ProductSummaryDto'
         '400':
-          description: Unsupported product type, including an empty cat value
+          description: Invalid or unavailable filter choices, invalid decimal prices, or a minimum price exceeding the maximum
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 400
+                  detail:
+                    type: string
+  /api/v1/products/filters:
+    get:
+      operationId: productFilterOptions
+      summary: Available catalog filter choices, independent of current selections
+      responses:
+        '200':
+          description: Supported types and distinct brands and shapes from the complete catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductFilterOptionsDto'
 components:
   schemas:
+    ProductFilterOptionsDto:
+      type: object
+      required: [types, brands, shapes]
+      properties:
+        types:
+          type: array
+          items:
+            type: object
+            required: [value, label]
+            properties:
+              value:
+                type: string
+                example: eyeglasses
+              label:
+                type: string
+                example: Eyeglasses
+        brands:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        shapes:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
     ProductSummaryDto:
       type: object
       required: [id, slug, name, brand, type, shape, color, price, currency, mainThumbnail, rotatingThumbnails]

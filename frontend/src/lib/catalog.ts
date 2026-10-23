@@ -1,47 +1,40 @@
 import "server-only";
+import { catalogQuery, type CatalogSearchParams } from "./catalog-filters";
+import * as v from "valibot";
+import { ProductSummaryDtoSchema, type ProductSummaryDto } from "./catalog-schemas";
+export type { ProductImageDto, ProductSummaryDto } from "./catalog-schemas";
 
-export const productTypes = [
-  { value: "eyeglasses", label: "Eyeglasses" },
-  { value: "sunglasses", label: "Sunglasses" },
-  { value: "reading-glasses", label: "Reading glasses" },
-  { value: "sports-glasses", label: "Sports glasses" },
-] as const;
-
-export type ProductImageDto = {
-  url: string;
-  altText: string;
-  width: number;
-  height: number;
+export type ProductFilterOptionsDto = {
+  types: { value: string; label: string }[];
+  brands: string[];
+  shapes: string[];
 };
 
-export type ProductSummaryDto = {
-  id: string;
-  slug: string;
-  name: string;
-  brand: string;
-  type: (typeof productTypes)[number]["value"];
-  shape: string;
-  color: string;
-  price: number;
-  currency: string;
-  mainThumbnail: ProductImageDto | null;
-  rotatingThumbnails: ProductImageDto[];
-};
+export class CatalogFilterError extends Error {}
 
-export async function getProducts(filters: { cat?: string } = {}): Promise<ProductSummaryDto[]> {
+export async function getProducts(params: CatalogSearchParams = {}): Promise<ProductSummaryDto[]> {
+  const json: unknown = await catalogRequest(`/api/v1/products?${catalogQuery(params)}`);
+  return v.parse(v.array(ProductSummaryDtoSchema), json);
+}
+
+export function getProductFilterOptions(): Promise<ProductFilterOptionsDto> {
+  return catalogRequest("/api/v1/products/filters");
+}
+
+async function catalogRequest<T>(path: string): Promise<T> {
   const baseUrl = process.env.BACKEND_URL ?? "http://localhost:8080";
-  const url = new URL("/api/v1/products", baseUrl);
-  if (filters.cat !== undefined) {
-    url.searchParams.set("cat", filters.cat);
-  }
-  const response = await fetch(url, {
+  const response = await fetch(new URL(path, baseUrl), {
     cache: "no-store",
     signal: AbortSignal.timeout(5000),
   });
 
+  if (response.status === 400) {
+    const problem = await response.json();
+    throw new CatalogFilterError(typeof problem.detail === "string" ? problem.detail : "Invalid filters. Clear the filters and try again.");
+  }
   if (!response.ok) {
     throw new Error(`Catalog request failed: ${response.status}`);
   }
 
-  return response.json() as Promise<ProductSummaryDto[]>;
+  return response.json() as Promise<T>;
 }

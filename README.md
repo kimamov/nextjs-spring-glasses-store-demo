@@ -6,9 +6,19 @@ The catalog renders 60 fictional frames from PostgreSQL through a Spring REST AP
 and a Next.js Server Component. Filter by eyeglasses, sunglasses, reading glasses,
 or sports glasses using URL query parameters, for example `/glasses?cat=sunglasses`.
 Checkout, accounts, lens configuration, and payments are not implemented yet.
+The storefront uses nuqs for URL filters: glasses type (`cat`), comma-separated
+brands and shapes (`brand`, `shape`), and inclusive EUR price bounds (`minPrice`,
+`maxPrice`). For example, `/glasses?cat=sunglasses&shape=Round,Oval&maxPrice=100`.
+Checkbox choices match any selected value; different filter groups combine.
+Next.js forwards filter parameters to Java, where JPA applies them in the database.
+The Java endpoint `/api/v1/products/filters` supplies type labels and the full
+catalog's distinct brand and shape choices, even when a selection has no results.
+To add a filter, extend the Java controller and database predicates, the nuqs
+parsers in `frontend/src/lib/catalog-filters.ts`, and its control in
+`frontend/src/app/glasses/product-filters.tsx`. Next.js does not filter products.
 Products support ordered images with a main thumbnail and independent rotation
 selections. Catalog cards show only the main image, with a placeholder when it is
-missing or unavailable. Two demo frames have local Mister Spex sample photos;
+missing or unavailable. All 60 demo frames share five sets of local sample images;
 see [image sources and selection rules](docs/product-images.md).
 
 ## Structure
@@ -87,6 +97,7 @@ match the database in Compose. Set these in your shell or IDE run configuration.
 ```bash
 cd frontend
 npm run lint
+npm test
 npm run typecheck
 npm run build
 ```
@@ -97,7 +108,8 @@ mvn verify
 ```
 
 The controller tests run without a database. The backend Docker build also runs
-them. A complete smoke check needs PostgreSQL and both running applications:
+them. With PostgreSQL running, `CATALOG_DB_TESTS=true mvn verify` also runs database
+filter tests; their fixture changes roll back. A complete smoke check needs PostgreSQL and both running applications:
 the API should return 60 frames (15 per type), and the storefront should show
 their names, types, and prices. Unsupported `cat` values return HTTP 400.
 No mock catalog is substituted when the backend is unavailable.

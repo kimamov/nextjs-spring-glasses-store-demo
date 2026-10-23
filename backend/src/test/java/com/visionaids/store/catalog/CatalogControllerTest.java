@@ -4,12 +4,15 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -23,7 +26,7 @@ class CatalogControllerTest {
 
     @Test
     void exposesTheCatalogAsJsonWithPriceAndCurrency() throws Exception {
-        when(catalog.listProducts(null)).thenReturn(List.of(new ProductSummaryDto(
+        when(catalog.listProducts(null, List.of(), List.of(), null, null)).thenReturn(List.of(new ProductSummaryDto(
                 UUID.fromString("10000000-0000-0000-0000-000000000001"),
                 "mitte", "Mitte", "Vision Aids", "eyeglasses", "Round", "Tortoiseshell",
                 new BigDecimal("89.00"), "EUR",
@@ -51,7 +54,7 @@ class CatalogControllerTest {
 
     @Test
     void exposesNullMainThumbnailAndEmptyRotationForProductsWithoutImages() throws Exception {
-        when(catalog.listProducts(null)).thenReturn(List.of(new ProductSummaryDto(
+        when(catalog.listProducts(null, List.of(), List.of(), null, null)).thenReturn(List.of(new ProductSummaryDto(
                 UUID.randomUUID(), "kreuzberg", "Kreuzberg", "Vision Aids", "eyeglasses",
                 "Square", "Black", new BigDecimal("109.00"), "EUR", null, List.of())));
 
@@ -64,9 +67,44 @@ class CatalogControllerTest {
 
     @Test
     void returnsAnEmptyArrayWhenTheCatalogIsEmpty() throws Exception {
-        when(catalog.listProducts(null)).thenReturn(List.of());
+        when(catalog.listProducts(null, List.of(), List.of(), null, null)).thenReturn(List.of());
         mvc.perform(get("/api/v1/products"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("[]"));
+    }
+
+    @Test
+    void forwardsCombinedFiltersIncludingCommaSeparatedAndRepeatedSelections() throws Exception {
+        mvc.perform(get("/api/v1/products")
+                .param("cat", "sunglasses")
+                .param("brand", "Northline,Studio Frame")
+                .param("shape", "Round", "Oval")
+                .param("minPrice", "49.99")
+                .param("maxPrice", "100"))
+                .andExpect(status().isOk());
+        verify(catalog).listProducts("sunglasses", List.of("Northline", "Studio Frame"),
+                List.of("Round", "Oval"), new BigDecimal("49.99"), new BigDecimal("100"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "-1", "NaN", "Infinity", "12oops", "1.234", "1e2", "" })
+    void rejectsInvalidPricesWithAnActionableProblemDetail(String price) throws Exception {
+        for (String parameter : List.of("minPrice", "maxPrice")) {
+            mvc.perform(get("/api/v1/products").param(parameter, price))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("Prices must be non-negative")));
+        }
+    }
+
+    @Test
+    void exposesFilterOptionsIndependentlyOfProductSelections() throws Exception {
+        when(catalog.filterOptions()).thenReturn(new ProductFilterOptionsDto(
+                List.of(new ProductFilterOptionsDto.TypeOption("eyeglasses", "Eyeglasses")),
+                List.of("Northline"), List.of("Round", "Oval")));
+        mvc.perform(get("/api/v1/products/filters"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.types[0].label").value("Eyeglasses"))
+                .andExpect(jsonPath("$.brands[0]").value("Northline"))
+                .andExpect(jsonPath("$.shapes.length()").value(2));
     }
 }
