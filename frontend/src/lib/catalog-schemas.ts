@@ -21,5 +21,16 @@ export const ProductSummaryDtoSchema = v.object({
   rotatingThumbnails: v.array(ProductImageDtoSchema),
 });
 
+export const ProductFilterOptionsDtoSchema = v.object({
+  types: v.array(v.object({ value: v.string(), label: v.string() })),
+  brands: v.array(v.string()),
+  shapes: v.array(v.string()),
+});
+
+export const CatalogProblemSchema = v.object({
+  detail: v.optional(v.pipe(v.string(), v.trim(), v.nonEmpty())),
+});
+
 export type ProductImageDto = v.InferOutput<typeof ProductImageDtoSchema>;
 export type ProductSummaryDto = v.InferOutput<typeof ProductSummaryDtoSchema>;
+export type ProductFilterOptionsDto = v.InferOutput<typeof ProductFilterOptionsDtoSchema>;

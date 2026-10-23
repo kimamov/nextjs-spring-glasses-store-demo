@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as v from "valibot";
-import { ProductSummaryDtoSchema } from "./catalog-schemas.ts";
+import { CatalogProblemSchema, ProductFilterOptionsDtoSchema, ProductSummaryDtoSchema } from "./catalog-schemas.ts";
 
 const image = { url: "/images/frame.png", altText: "Frame", width: 384, height: 204 };
 const product = {
@@ -49,4 +49,34 @@ test("rejects missing required nullable fields and non-list responses", () => {
 
 test("tolerates new backend fields and returns the parsed output without them", () => {
   assert.deepEqual(v.parse(productsSchema, [{ ...product, extra: true }]), [product]);
+});
+
+test("accepts filter options including an empty catalog", () => {
+  const options = { types: [{ value: "eyeglasses", label: "Eyeglasses" }], brands: ["Northline"], shapes: ["Round"] };
+  assert.deepEqual(v.parse(ProductFilterOptionsDtoSchema, options), options);
+  const empty = { types: [], brands: [], shapes: [] };
+  assert.deepEqual(v.parse(ProductFilterOptionsDtoSchema, empty), empty);
+});
+
+test("rejects malformed filter option groups and nested choices", () => {
+  for (const invalid of [
+    null,
+    { types: [], brands: [] },
+    { types: [{ value: "eyeglasses" }], brands: [], shapes: [] },
+    { types: [{ value: 1, label: "Eyeglasses" }], brands: [], shapes: [] },
+    { types: [], brands: "Northline", shapes: [] },
+    { types: [], brands: [], shapes: [123] },
+  ]) assert.throws(() => v.parse(ProductFilterOptionsDtoSchema, invalid), v.ValiError);
+});
+
+test("extracts usable problem details while tolerating extra backend fields", () => {
+  assert.deepEqual(v.parse(CatalogProblemSchema, { status: 400, detail: " Invalid price. " }), { detail: "Invalid price." });
+  assert.equal(v.safeParse(CatalogProblemSchema, {}).success, true);
+});
+
+test("malformed or blank problem details can use the error fallback", () => {
+  for (const invalid of [null, [], "error", { detail: null }, { detail: 123 }, { detail: "" }, { detail: "  " }]) {
+    const result = v.safeParse(CatalogProblemSchema, invalid);
+    assert.equal(result.success ? result.output.detail : undefined, undefined);
+  }
 });
