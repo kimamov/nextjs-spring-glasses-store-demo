@@ -23,6 +23,12 @@ keep personal carts and sessions out of shared caches.
 The Java application uses packages by feature, starting with `catalog`.
 The controller calls an application service, which reads from a Spring Data
 repository. API records keep persistence entities out of HTTP responses.
+The list endpoint returns `ProductSummaryDto` records with a nullable `mainThumbnail`
+and ordered `rotatingThumbnails`. Selection happens in the backend, so the
+frontend consumes the prepared image roles directly. Shared `ProductImageDto`
+records contain only the URL, alt text, and source dimensions. `ProductDetailDto`
+adds the full ordered image gallery to those fields and has a mapping ready for
+a future detail endpoint; no detail route is exposed yet.
 Flyway owns schema creation; Hibernate validates the schema at startup.
 The first two migrations create the catalog and seed fictional demo products.
 The third adds product types and expands the demo catalog to 60 frames.

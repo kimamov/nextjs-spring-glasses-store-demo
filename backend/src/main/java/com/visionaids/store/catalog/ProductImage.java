@@ -23,7 +23,15 @@ class ProductImage {
     protected ProductImage() {
     }
 
-    ProductImageResponse toResponse() {
-        return new ProductImageResponse(url, altText, width, height, mainThumbnail, rotatingThumbnail);
+    boolean isMainThumbnail() {
+        return mainThumbnail;
+    }
+
+    boolean isRotatingThumbnail() {
+        return rotatingThumbnail;
+    }
+
+    ProductImageDto toDto() {
+        return new ProductImageDto(url, altText, width, height);
     }
 }

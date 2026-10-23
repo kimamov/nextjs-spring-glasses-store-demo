@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import type { ProductImage } from "@/lib/catalog";
+import type { ProductImageDto } from "@/lib/catalog";
 
-export function ProductThumbnail({ image }: { image?: ProductImage }) {
+export function ProductThumbnail({ image }: { image: ProductImageDto | null }) {
   return <Thumbnail key={image?.url} image={image} />;
 }
 
-function Thumbnail({ image }: { image?: ProductImage }) {
+function Thumbnail({ image }: { image: ProductImageDto | null }) {
   const [failed, setFailed] = useState(false);
 
   if (!image || failed) {

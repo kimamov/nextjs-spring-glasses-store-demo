@@ -25,14 +25,14 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Product'
+                  $ref: '#/components/schemas/ProductSummaryDto'
         '400':
           description: Unsupported product type, including an empty cat value
 components:
   schemas:
-    Product:
+    ProductSummaryDto:
       type: object
-      required: [id, slug, name, brand, type, shape, color, price, currency, images]
+      required: [id, slug, name, brand, type, shape, color, price, currency, mainThumbnail, rotatingThumbnails]
       properties:
         id:
           type: string
@@ -64,14 +64,42 @@ components:
         currency:
           type: string
           example: EUR
-        images:
+        mainThumbnail:
+          type: object
+          nullable: true
+          description: Selected main image, or null when the product has no images.
+          required: [url, altText, width, height]
+          properties:
+            url:
+              type: string
+            altText:
+              type: string
+            width:
+              type: integer
+              minimum: 1
+            height:
+              type: integer
+              minimum: 1
+        rotatingThumbnails:
           type: array
-          description: Ordered gallery. Empty when no images exist; otherwise exactly one image is the main thumbnail.
+          description: Selected rotation images in gallery order. May be empty. Includes the main image only if it is also selected for rotation.
           items:
-            $ref: '#/components/schemas/ProductImage'
-    ProductImage:
+            $ref: '#/components/schemas/ProductImageDto'
+    ProductDetailDto:
+      description: Detail DTO prepared for a future detail endpoint; no detail route is currently exposed.
+      allOf:
+        - $ref: '#/components/schemas/ProductSummaryDto'
+        - type: object
+          required: [images]
+          properties:
+            images:
+              type: array
+              description: Complete gallery in stored order, including images not selected for thumbnails.
+              items:
+                $ref: '#/components/schemas/ProductImageDto'
+    ProductImageDto:
       type: object
-      required: [url, altText, width, height, mainThumbnail, rotatingThumbnail]
+      required: [url, altText, width, height]
       properties:
         url:
           type: string
@@ -90,9 +118,3 @@ components:
           minimum: 1
           description: Intrinsic height of the source file in pixels, independent of rendered size.
           example: 332
-        mainThumbnail:
-          type: boolean
-          description: Exactly one image per nonempty gallery has this set to true.
-        rotatingThumbnail:
-          type: boolean
-          description: Include in future thumbnail rotation, in gallery order. Independent of mainThumbnail; any subset, including none, is allowed.

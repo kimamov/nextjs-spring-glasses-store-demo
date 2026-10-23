@@ -22,7 +22,7 @@ public class CatalogController {
     }
 
     @GetMapping
-    public List<ProductResponse> listProducts(@RequestParam(required = false) String cat) {
+    public List<ProductSummaryDto> listProducts(@RequestParam(required = false) String cat) {
         if (cat != null && !PRODUCT_TYPES.contains(cat)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported product type");
         }

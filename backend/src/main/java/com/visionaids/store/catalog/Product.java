@@ -34,8 +34,24 @@ class Product {
     protected Product() {
     }
 
-    ProductResponse toResponse() {
-        return new ProductResponse(id, slug, name, brand, type, shape, color, price, currency,
-                images.stream().map(ProductImage::toResponse).toList());
+    ProductSummaryDto toSummary() {
+        return new ProductSummaryDto(id, slug, name, brand, type, shape, color, price, currency,
+                mainThumbnail(), rotatingThumbnails());
+    }
+
+    ProductDetailDto toDetail() {
+        return new ProductDetailDto(id, slug, name, brand, type, shape, color, price, currency,
+                mainThumbnail(), rotatingThumbnails(),
+                images.stream().map(ProductImage::toDto).toList());
+    }
+
+    private ProductImageDto mainThumbnail() {
+        return images.stream().filter(ProductImage::isMainThumbnail)
+                .findFirst().map(ProductImage::toDto).orElse(null);
+    }
+
+    private List<ProductImageDto> rotatingThumbnails() {
+        return images.stream().filter(ProductImage::isRotatingThumbnail)
+                .map(ProductImage::toDto).toList();
     }
 }

@@ -35,7 +35,7 @@ async function Catalog({ cat }: { cat?: string }) {
       <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {products.map((product) => (
           <li key={product.id} className="rounded-panel border border-divider bg-surface p-7">
-            <ProductThumbnail image={product.images.find((image) => image.mainThumbnail)} />
+            <ProductThumbnail image={product.mainThumbnail} />
             <p className="mt-6 text-xs uppercase tracking-eyebrow text-muted">{product.brand}</p>
             <h3 className="mt-2 text-2xl font-semibold">{product.name}</h3>
             <p className="mt-2 text-sm text-brand">

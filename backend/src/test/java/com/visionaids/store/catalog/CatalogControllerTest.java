@@ -23,12 +23,12 @@ class CatalogControllerTest {
 
     @Test
     void exposesTheCatalogAsJsonWithPriceAndCurrency() throws Exception {
-        when(catalog.listProducts(null)).thenReturn(List.of(new ProductResponse(
+        when(catalog.listProducts(null)).thenReturn(List.of(new ProductSummaryDto(
                 UUID.fromString("10000000-0000-0000-0000-000000000001"),
                 "mitte", "Mitte", "Vision Aids", "eyeglasses", "Round", "Tortoiseshell",
-                new BigDecimal("89.00"), "EUR", List.of(
-                        new ProductImageResponse("/images/side.jpg", "Side view", 500, 332, false, true),
-                        new ProductImageResponse("/images/front.jpg", "Front view", 1200, 800, true, false)))));
+                new BigDecimal("89.00"), "EUR",
+                new ProductImageDto("/images/front.jpg", "Front view", 1200, 800),
+                List.of(new ProductImageDto("/images/side.jpg", "Side view", 500, 332)))));
 
         mvc.perform(get("/api/v1/products"))
                 .andExpect(status().isOk())
@@ -36,28 +36,30 @@ class CatalogControllerTest {
                 .andExpect(jsonPath("$[0].slug").value("mitte"))
                 .andExpect(jsonPath("$[0].price").value(89.00))
                 .andExpect(jsonPath("$[0].currency").value("EUR"))
-                .andExpect(jsonPath("$[0].images.length()").value(2))
-                .andExpect(jsonPath("$[0].images[0].url").value("/images/side.jpg"))
-                .andExpect(jsonPath("$[0].images[0].altText").value("Side view"))
-                .andExpect(jsonPath("$[0].images[0].width").value(500))
-                .andExpect(jsonPath("$[0].images[0].height").value(332))
-                .andExpect(jsonPath("$[0].images[0].mainThumbnail").value(false))
-                .andExpect(jsonPath("$[0].images[0].rotatingThumbnail").value(true))
-                .andExpect(jsonPath("$[0].images[1].mainThumbnail").value(true))
-                .andExpect(jsonPath("$[0].images[1].width").value(1200))
-                .andExpect(jsonPath("$[0].images[1].height").value(800))
-                .andExpect(jsonPath("$[0].images[1].rotatingThumbnail").value(false));
+                .andExpect(jsonPath("$[0].mainThumbnail.url").value("/images/front.jpg"))
+                .andExpect(jsonPath("$[0].mainThumbnail.altText").value("Front view"))
+                .andExpect(jsonPath("$[0].mainThumbnail.width").value(1200))
+                .andExpect(jsonPath("$[0].mainThumbnail.height").value(800))
+                .andExpect(jsonPath("$[0].rotatingThumbnails.length()").value(1))
+                .andExpect(jsonPath("$[0].rotatingThumbnails[0].url").value("/images/side.jpg"))
+                .andExpect(jsonPath("$[0].rotatingThumbnails[0].width").value(500))
+                .andExpect(jsonPath("$[0].rotatingThumbnails[0].height").value(332))
+                .andExpect(jsonPath("$[0].images").doesNotExist())
+                .andExpect(jsonPath("$[0].mainThumbnail.mainThumbnail").doesNotExist())
+                .andExpect(jsonPath("$[0].rotatingThumbnails[0].rotatingThumbnail").doesNotExist());
     }
 
     @Test
-    void exposesAnEmptyImageListForProductsWithoutImages() throws Exception {
-        when(catalog.listProducts(null)).thenReturn(List.of(new ProductResponse(
+    void exposesNullMainThumbnailAndEmptyRotationForProductsWithoutImages() throws Exception {
+        when(catalog.listProducts(null)).thenReturn(List.of(new ProductSummaryDto(
                 UUID.randomUUID(), "kreuzberg", "Kreuzberg", "Vision Aids", "eyeglasses",
-                "Square", "Black", new BigDecimal("109.00"), "EUR", List.of())));
+                "Square", "Black", new BigDecimal("109.00"), "EUR", null, List.of())));
 
         mvc.perform(get("/api/v1/products"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].images").isEmpty());
+                .andExpect(jsonPath("$[0]").value(org.hamcrest.Matchers.hasKey("mainThumbnail")))
+                .andExpect(jsonPath("$[0].mainThumbnail").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$[0].rotatingThumbnails").isEmpty());
     }
 
     @Test

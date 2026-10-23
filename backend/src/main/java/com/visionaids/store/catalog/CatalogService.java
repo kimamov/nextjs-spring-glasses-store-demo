@@ -14,7 +14,7 @@ public class CatalogService {
         this.products = products;
     }
 
-    public List<ProductResponse> listProducts(String cat) {
-        return products.findFiltered(cat, Sort.by("name")).stream().map(Product::toResponse).toList();
+    public List<ProductSummaryDto> listProducts(String cat) {
+        return products.findFiltered(cat, Sort.by("name")).stream().map(Product::toSummary).toList();
     }
 }

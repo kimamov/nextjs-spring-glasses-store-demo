@@ -7,16 +7,14 @@ export const productTypes = [
   { value: "sports-glasses", label: "Sports glasses" },
 ] as const;
 
-export type ProductImage = {
+export type ProductImageDto = {
   url: string;
   altText: string;
   width: number;
   height: number;
-  mainThumbnail: boolean;
-  rotatingThumbnail: boolean;
 };
 
-export type Product = {
+export type ProductSummaryDto = {
   id: string;
   slug: string;
   name: string;
@@ -26,10 +24,11 @@ export type Product = {
   color: string;
   price: number;
   currency: string;
-  images: ProductImage[];
+  mainThumbnail: ProductImageDto | null;
+  rotatingThumbnails: ProductImageDto[];
 };
 
-export async function getProducts(filters: { cat?: string } = {}): Promise<Product[]> {
+export async function getProducts(filters: { cat?: string } = {}): Promise<ProductSummaryDto[]> {
   const baseUrl = process.env.BACKEND_URL ?? "http://localhost:8080";
   const url = new URL("/api/v1/products", baseUrl);
   if (filters.cat !== undefined) {
@@ -44,5 +43,5 @@ export async function getProducts(filters: { cat?: string } = {}): Promise<Produ
     throw new Error(`Catalog request failed: ${response.status}`);
   }
 
-  return response.json() as Promise<Product[]>;
+  return response.json() as Promise<ProductSummaryDto[]>;
 }
