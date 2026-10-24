@@ -41,6 +41,7 @@
   }
 
   body { margin: 0; }
+  body:has(dialog:modal) { overflow: hidden; }
   a { color: inherit; text-decoration: none; }
   button:not(:disabled) { cursor: pointer; }
 

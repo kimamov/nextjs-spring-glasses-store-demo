@@ -27,41 +27,45 @@ async function Catalog({ params }: { params: Record<string, string | string[] | 
   const products = productResponse.status === "fulfilled" ? productResponse.value : [];
 
   return (
-    <>
-      <ProductFilters options={options} />
-      {filterError ? (
-        <p role="status" className="py-12 text-muted">{filterError}</p>
-      ) : products.length === 0 ? (
-        <p role="status" className="py-12 text-muted">No glasses match these filters. Adjust your selections or clear the filters.</p>
-      ) : (
-        <>
-          <p role="status" className="mb-6 text-sm text-muted">
-            {products.length} {products.length === 1 ? "frame" : "frames"} found
-          </p>
-          <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {products.map((product, index) => (
-              <ThumbnailCard
-                key={product.id}
-                image={product.mainThumbnail}
-                thumbnails={product.rotatingThumbnails}
-                loading={index < 3 ? "eager" : "lazy"}
-              >
-                <p className="mt-6 text-xs uppercase tracking-eyebrow text-muted">{product.brand}</p>
-                <h3 className="mt-2 text-2xl font-semibold">{product.name}</h3>
-                <p className="mt-2 text-sm text-brand">
-                  {options.types.find((type) => type.value === product.type)?.label ?? product.type}
-                </p>
-                <p className="mt-2 text-sm text-muted">{product.shape} · {product.color}</p>
-                <p className="mt-5 font-medium">
-                  {new Intl.NumberFormat("de-DE", { style: "currency", currency: product.currency }).format(product.price)}
-                  <span className="ml-2 text-xs font-normal text-muted">frame only</span>
-                </p>
-              </ThumbnailCard>
-            ))}
-          </ul>
-        </>
-      )}
-    </>
+    <div className="flex flex-col gap-2 md:flex-row md:gap-4">
+      <aside className="md:w-80 md:shrink-0">
+        <ProductFilters options={options} />
+      </aside>
+      <div className="min-w-0 flex-1">
+        {filterError ? (
+          <p role="status" className="py-12 text-muted">{filterError}</p>
+        ) : products.length === 0 ? (
+          <p role="status" className="py-12 text-muted">No glasses match these filters. Adjust your selections or clear the filters.</p>
+        ) : (
+          <>
+            <p role="status" className="mb-6 text-sm text-muted">
+              {products.length} {products.length === 1 ? "frame" : "frames"} found
+            </p>
+            <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {products.map((product, index) => (
+                <ThumbnailCard
+                  key={product.id}
+                  image={product.mainThumbnail}
+                  thumbnails={product.rotatingThumbnails}
+                  loading={index < 3 ? "eager" : "lazy"}
+                >
+                  <p className="mt-6 text-xs uppercase tracking-eyebrow text-muted">{product.brand}</p>
+                  <h3 className="mt-2 text-2xl font-semibold">{product.name}</h3>
+                  <p className="mt-2 text-sm text-brand">
+                    {options.types.find((type) => type.value === product.type)?.label ?? product.type}
+                  </p>
+                  <p className="mt-2 text-sm text-muted">{product.shape} · {product.color}</p>
+                  <p className="mt-5 font-medium">
+                    {new Intl.NumberFormat("de-DE", { style: "currency", currency: product.currency }).format(product.price)}
+                    <span className="ml-2 text-xs font-normal text-muted">frame only</span>
+                  </p>
+                </ThumbnailCard>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
