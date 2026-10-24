@@ -12,6 +12,14 @@ The browser does not connect directly to the Java backend in this initial slice.
 `BACKEND_URL` stays on the Next.js server; no public environment variable or CORS
 configuration is necessary for this request flow.
 
+Guest checkout follows the same boundary: `/checkout?productId=<id>` loads the
+selected product on the server, and its form submits through a Server Action to
+Java's `POST /api/v1/checkout/validate`. Java validates German delivery details
+and returns a summary using the current catalog price for one frame with free
+demo shipping. Only the product ID appears in the URL. Personal details stay in
+the form/action request, are not persisted, and are omitted from API responses.
+The next step is pending-order persistence, followed by Stripe sandbox Checkout.
+
 The glasses page streams its catalog section through Suspense. Catalog requests are
 explicitly uncached for now, with a five-second timeout and an honest unavailable
 state. This avoids build-time database access and makes backend changes visible

@@ -9,7 +9,13 @@ Select a frame to open `/glasses/[id]` with the complete gallery, frame details,
 and placeholder description. Java supplies details through `/api/v1/products/{id}`;
 lookups use UUIDs rather than slugs. The main image transitions between the two views
 in supported browsers, with reduced-motion preferences respected.
-Checkout, accounts, lens configuration, and payments are not implemented yet.
+The detail page links to `/checkout?productId=<id>` for a guest checkout form and
+order summary. This first step supports one frame, delivery in Germany, and free
+demo shipping. “Check details” sends the form through a Next.js Server Action to
+`POST /api/v1/checkout/validate`. Java validates the contact/address fields and
+reloads the product price. Details are not persisted and no order or payment is
+created. Accounts, lens configuration, Stripe, and order persistence are not
+implemented yet.
 The storefront uses nuqs for URL filters: glasses type (`cat`), comma-separated
 brands and shapes (`brand`, `shape`), and inclusive EUR price bounds (`minPrice`,
 `maxPrice`). For example, `/glasses?cat=sunglasses&shape=Round,Oval&maxPrice=100`.

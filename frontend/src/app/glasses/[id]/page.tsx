@@ -4,6 +4,7 @@ import { getProduct, ProductNotFoundError } from "@/lib/catalog";
 import { ProductThumbnail } from "../product-thumbnail";
 import { RefreshCatalog } from "../refresh-catalog";
 import { BackToCollection } from "../collection-navigation";
+import { Button } from "@/components/button";
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -62,7 +63,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
             Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
             Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
           </p>
-          <p className="mt-8 border-t border-divider pt-6 text-sm text-muted">Ordering will be available here soon.</p>
+          <Button href={`/checkout?productId=${product.id}`} className="mt-8">Checkout</Button>
         </div>
       </article>
     </>

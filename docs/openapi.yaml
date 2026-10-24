@@ -5,6 +5,39 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
+  /api/v1/checkout/validate:
+    post:
+      operationId: validateCheckout
+      summary: Validate guest checkout details and return the current price
+      description: One frame with free demo shipping within Germany. Does not save personal data, create orders, or initiate payment. Totals are read from the catalog, not accepted from the client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '200':
+          description: Details are valid; current product total
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutSummaryDto'
+        '400':
+          description: Invalid details or malformed request; field validation failures include an errors map
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: string
+        '404':
+          description: Selected product no longer exists
   /api/v1/products:
     get:
       operationId: listProducts
@@ -106,6 +139,59 @@ paths:
                 $ref: '#/components/schemas/ProductFilterOptionsDto'
 components:
   schemas:
+    CheckoutRequest:
+      type: object
+      required: [productId, firstName, lastName, email, street, postalCode, city, country]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        street:
+          type: string
+          minLength: 1
+          maxLength: 200
+        addressLine2:
+          type: string
+          nullable: true
+          maxLength: 200
+        postalCode:
+          type: string
+          pattern: '^[0-9]{5}$'
+        city:
+          type: string
+          minLength: 1
+          maxLength: 100
+        country:
+          type: string
+          enum: [DE]
+    CheckoutSummaryDto:
+      type: object
+      required: [productId, productName, total, currency]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        productName:
+          type: string
+        total:
+          type: number
+          minimum: 0
+          description: Price of one frame, including free demo shipping
+        currency:
+          type: string
+          example: EUR
     ProductFilterOptionsDto:
       type: object
       required: [types, brands, shapes]

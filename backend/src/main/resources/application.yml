@@ -13,6 +13,10 @@ spring:
     enabled: true
 server:
   port: ${PORT:8080}
+logging:
+  level:
+    # Validation exception messages contain rejected personal details at DEBUG.
+    org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: INFO
 management:
   endpoints:
     web:
