@@ -71,6 +71,28 @@ paths:
                     example: 400
                   detail:
                     type: string
+  /api/v1/products/{id}:
+    get:
+      operationId: getProduct
+      summary: Find a product by ID with its complete image gallery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Product details, including all images in stored order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetailDto'
+        '400':
+          description: The ID is not a valid UUID
+        '404':
+          description: No product exists with this ID
   /api/v1/products/filters:
     get:
       operationId: productFilterOptions
@@ -166,7 +188,7 @@ components:
           items:
             $ref: '#/components/schemas/ProductImageDto'
     ProductDetailDto:
-      description: Detail DTO prepared for a future detail endpoint; no detail route is currently exposed.
+      description: Product details returned by the ID lookup endpoint.
       allOf:
         - $ref: '#/components/schemas/ProductSummaryDto'
         - type: object

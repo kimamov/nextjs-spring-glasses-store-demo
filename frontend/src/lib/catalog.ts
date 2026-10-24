@@ -3,6 +3,7 @@ import { catalogQuery, type CatalogSearchParams } from "./catalog-filters";
 import * as v from "valibot";
 import {
   CatalogProblemSchema,
+  ProductDetailDtoSchema,
   ProductFilterOptionsDtoSchema,
   ProductSummaryDtoSchema,
   type ProductFilterOptionsDto,
@@ -11,6 +12,12 @@ import {
 export type { ProductImageDto, ProductSummaryDto, ProductFilterOptionsDto } from "./catalog-schemas";
 
 export class CatalogFilterError extends Error {}
+export class ProductNotFoundError extends Error {}
+
+export function getProduct(id: string) {
+  if (!v.is(v.pipe(v.string(), v.uuid()), id)) throw new ProductNotFoundError();
+  return catalogRequest(`/api/v1/products/${encodeURIComponent(id)}`, ProductDetailDtoSchema);
+}
 
 export function getProducts(params: CatalogSearchParams = {}): Promise<ProductSummaryDto[]> {
   return catalogRequest(`/api/v1/products?${catalogQuery(params)}`, v.array(ProductSummaryDtoSchema));
@@ -37,6 +44,7 @@ async function catalogRequest<TSchema extends v.GenericSchema>(
       : "Invalid filters. Clear the filters and try again.");
   }
   if (!response.ok) {
+    if (response.status === 404) throw new ProductNotFoundError();
     throw new Error(`Catalog request failed: ${response.status}`);
   }
 

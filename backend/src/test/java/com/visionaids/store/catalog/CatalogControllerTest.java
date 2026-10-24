@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
@@ -23,6 +25,42 @@ class CatalogControllerTest {
 
     @MockitoBean
     private CatalogService catalog;
+
+    @Test
+    void exposesProductDetailsByIdIncludingTheCompleteGallery() throws Exception {
+        UUID id = UUID.fromString("10000000-0000-0000-0000-000000000001");
+        ProductImageDto front = new ProductImageDto("/front.jpg", "Front view", 1200, 800);
+        ProductImageDto detail = new ProductImageDto("/detail.jpg", "Frame detail", 500, 332);
+        when(catalog.getProduct(id)).thenReturn(new ProductDetailDto(id, "mitte", "Mitte", "Vision Aids",
+                "eyeglasses", "Round", "Black", new BigDecimal("89.00"), "EUR",
+                front, List.of(front), List.of(front, detail)));
+
+        mvc.perform(get("/api/v1/products/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id.toString()))
+                .andExpect(jsonPath("$.name").value("Mitte"))
+                .andExpect(jsonPath("$.price").value(89.00))
+                .andExpect(jsonPath("$.mainThumbnail.url").value("/front.jpg"))
+                .andExpect(jsonPath("$.images.length()").value(2))
+                .andExpect(jsonPath("$.images[1].url").value("/detail.jpg"))
+                .andExpect(jsonPath("$.images[1].altText").value("Frame detail"))
+                .andExpect(jsonPath("$.images[1].width").value(500));
+        verify(catalog).getProduct(id);
+    }
+
+    @Test
+    void returnsNotFoundForUnknownProductIds() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(catalog.getProduct(id)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found."));
+        mvc.perform(get("/api/v1/products/{id}", id))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("Product not found."));
+    }
+
+    @Test
+    void rejectsSlugsAndMalformedProductIds() throws Exception {
+        mvc.perform(get("/api/v1/products/mitte")).andExpect(status().isBadRequest());
+    }
 
     @Test
     void exposesTheCatalogAsJsonWithPriceAndCurrency() throws Exception {

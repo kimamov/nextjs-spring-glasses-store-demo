@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import * as v from "valibot";
-import { CatalogProblemSchema, ProductFilterOptionsDtoSchema, ProductSummaryDtoSchema } from "./catalog-schemas.ts";
+import { CatalogProblemSchema, ProductDetailDtoSchema, ProductFilterOptionsDtoSchema, ProductSummaryDtoSchema } from "./catalog-schemas.ts";
 
 const image = { url: "/images/frame.png", altText: "Frame", width: 384, height: 204 };
 const product = {
@@ -11,6 +11,15 @@ const product = {
   mainThumbnail: image, rotatingThumbnails: [image],
 };
 const productsSchema = v.array(ProductSummaryDtoSchema);
+
+test("product details require the complete gallery and validate every image", () => {
+  const detail = { ...product, images: [image, { ...image, url: "/images/detail.png" }] };
+  assert.deepEqual(v.parse(ProductDetailDtoSchema, detail), detail);
+  assert.deepEqual(v.parse(ProductDetailDtoSchema, { ...product, mainThumbnail: null, images: [] }).images, []);
+  for (const images of [undefined, null, "invalid", [{ ...image, width: 0 }]]) {
+    assert.throws(() => v.parse(ProductDetailDtoSchema, { ...product, images }), v.ValiError);
+  }
+});
 
 test("accepts product lists, relative image paths, and empty lists", () => {
   assert.deepEqual(v.parse(productsSchema, [product]), [product]);

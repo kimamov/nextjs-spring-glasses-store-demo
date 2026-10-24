@@ -4,6 +4,7 @@ import { CatalogFilterError, getProducts, getProductFilterOptions } from "@/lib/
 import { ProductFilters } from "./product-filters";
 import { RefreshCatalog } from "./refresh-catalog";
 import { ThumbnailCard } from "./thumbnail-card";
+import { RestoreCollectionScroll } from "./collection-navigation";
 
 async function Catalog({ params }: { params: Record<string, string | string[] | undefined> }) {
   const [productResponse, filterResponse] = await Promise.allSettled([
@@ -28,6 +29,7 @@ async function Catalog({ params }: { params: Record<string, string | string[] | 
 
   return (
     <div className="flex flex-col gap-2 md:flex-row md:gap-4">
+      <RestoreCollectionScroll />
       <aside className="md:w-80 md:shrink-0">
         <ProductFilters options={options} />
       </aside>
@@ -45,6 +47,7 @@ async function Catalog({ params }: { params: Record<string, string | string[] | 
               {products.map((product, index) => (
                 <ThumbnailCard
                   key={product.id}
+                  productId={product.id}
                   image={product.mainThumbnail}
                   thumbnails={product.rotatingThumbnails}
                   loading={index < 3 ? "eager" : "lazy"}

@@ -27,8 +27,11 @@ The list endpoint returns `ProductSummaryDto` records with a nullable `mainThumb
 and ordered `rotatingThumbnails`. Selection happens in the backend, so the
 frontend consumes the prepared image roles directly. Shared `ProductImageDto`
 records contain only the URL, alt text, and source dimensions. `ProductDetailDto`
-adds the full ordered image gallery to those fields and has a mapping ready for
-a future detail endpoint; no detail route is exposed yet.
+adds the full ordered image gallery to those fields and is returned by
+`GET /api/v1/products/{id}`. Missing products return 404; malformed UUIDs return 400.
+The storefront links catalog cards to `/glasses/[id]`, shows every image and
+placeholder description text, and pairs the card image with the detail hero using
+React View Transitions. Reduced-motion preferences disable the animation.
 Flyway owns schema creation; Hibernate validates the schema at startup.
 The first two migrations create the catalog and seed fictional demo products.
 The third adds product types and expands the demo catalog to 60 frames.

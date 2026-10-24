@@ -5,6 +5,10 @@ A small eyewear store for learning advanced Next.js with a Java backend.
 The catalog renders 60 fictional frames from PostgreSQL through a Spring REST API
 and a Next.js Server Component. Filter by eyeglasses, sunglasses, reading glasses,
 or sports glasses using URL query parameters, for example `/glasses?cat=sunglasses`.
+Select a frame to open `/glasses/[id]` with the complete gallery, frame details,
+and placeholder description. Java supplies details through `/api/v1/products/{id}`;
+lookups use UUIDs rather than slugs. The main image transitions between the two views
+in supported browsers, with reduced-motion preferences respected.
 Checkout, accounts, lens configuration, and payments are not implemented yet.
 The storefront uses nuqs for URL filters: glasses type (`cat`), comma-separated
 brands and shapes (`brand`, `shape`), and inclusive EUR price bounds (`minPrice`,

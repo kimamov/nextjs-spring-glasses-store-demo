@@ -4,6 +4,7 @@ import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
@@ -28,6 +29,11 @@ public class CatalogService {
 
     public ProductFilterOptionsDto filterOptions() {
         return new ProductFilterOptionsDto(PRODUCT_TYPES, products.findBrands(), products.findShapes());
+    }
+
+    public ProductDetailDto getProduct(UUID id) {
+        return products.findById(id).map(Product::toDetail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found."));
     }
 
     public List<ProductSummaryDto> listProducts(String cat, List<String> brands, List<String> shapes,
