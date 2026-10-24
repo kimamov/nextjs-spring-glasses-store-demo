@@ -21,3 +21,6 @@ next-env.d.ts
 *.log
 .DS_Store
 Thumbs.db
+
+# Optional local database snapshots; demo data lives in Flyway migrations.
+/vision-aids.sql

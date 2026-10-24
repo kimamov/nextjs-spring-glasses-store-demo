@@ -38,6 +38,9 @@ compose.yaml PostgreSQL 17 and both applications
 
 Requires Docker Engine/Desktop with Docker Compose v2, plus network access for
 the first build. Java, Maven, and Node are supplied by the container images.
+On macOS, install and start Docker Desktop first. The images support both Intel
+and Apple Silicon; no platform override or local Java/Node/PostgreSQL installation
+is needed for this route. Use a fresh clone, then run from the repository root:
 
 ```bash
 docker compose up --build
@@ -47,6 +50,17 @@ Open http://localhost:3000. The backend is at http://localhost:8080.
 The backend waits for PostgreSQL; the frontend may briefly show an unavailable
 message while Spring starts. Reload after the backend is ready.
 
+The first startup creates the database and runs the six tracked Flyway migrations
+automatically. They create the schema and seed all 60 fictional products and their
+240 image records. The 20 AI-generated image files are tracked in
+`frontend/public/images/products/` and included in the frontend container; no image
+download or database dump import is needed. Product IDs are stable across fresh
+installations. No `.env` file is required for the Docker setup.
+
+Ports 3000, 8080, and 5432 must be available. If an existing container still serves
+older code after pulling changes, run `docker compose up -d --build` to rebuild
+and recreate it.
+
 ```bash
 curl --fail http://localhost:8080/actuator/health
 curl --fail http://localhost:8080/api/v1/products
@@ -55,6 +69,49 @@ curl --fail 'http://localhost:8080/api/v1/products?cat=sunglasses'
 
 Stop with `docker compose down`. Database data persists in a named volume.
 Compose is configured for local development with local database credentials.
+
+To remove the local database and recreate the demo data, run the following from
+the repository root. **This deletes all local database changes:**
+
+```bash
+docker compose down --volumes
+docker compose up --build
+```
+
+### Optional database snapshots
+
+The migrations are the source of the demo data. Use a dump only to transfer manual
+database changes that are not represented by migrations. These commands use the
+PostgreSQL tools inside Docker, so they also work on macOS without installing
+`pg_dump` or `psql` locally.
+
+Export a snapshot while the database is running:
+
+```bash
+docker compose exec -T db pg_dump -U vision_aids -d vision_aids --no-owner --no-acl > vision-aids.sql
+```
+
+The dump includes the schema, data, and Flyway migration history. Image files stay
+in the repository; the database stores only their paths. The snapshot filename
+above is ignored by Git because it may include local data. Share a reviewed
+snapshot separately when another developer needs those exact changes.
+
+To import a snapshot, stop any locally running backend too, then start only
+PostgreSQL and wait until it reports healthy in `docker compose ps`.
+**The drop/create commands replace the entire local database:**
+
+```bash
+docker compose stop frontend backend
+docker compose up -d --wait db
+docker compose exec -T db dropdb -U vision_aids --if-exists vision_aids
+docker compose exec -T db createdb -U vision_aids vision_aids
+docker compose exec -T db psql -U vision_aids -d vision_aids -v ON_ERROR_STOP=1 --single-transaction < vision-aids.sql
+docker compose up -d --build
+```
+
+Restore a full dump into an empty database, before starting Spring. Do not import
+it on top of the seeded database. The backend uses the restored Flyway history to
+apply only migrations newer than the snapshot.
 
 ## Run with hot reload
 

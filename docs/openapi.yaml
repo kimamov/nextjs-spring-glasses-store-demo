@@ -206,7 +206,7 @@ components:
         url:
           type: string
           description: Image URL; sample images use paths relative to the storefront origin.
-          example: /images/products/misterspex-6536001-a.jpg
+          example: /images/products/brille-02-havanna-bild-01.png
         altText:
           type: string
           description: Accessible description of this image.

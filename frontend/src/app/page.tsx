@@ -54,12 +54,12 @@ export default function Home() {
         </div>
         <div className="relative min-h-72 md:min-h-[520px]">
           <Image
-            src="/images/eyeglasses.jpg"
-            alt="Tortoiseshell browline glasses resting on an open book"
+            src="/images/products/brille-02-havanna-bild-01.png"
+            alt="AI-generated round tortoiseshell glasses, front view"
             fill
             priority
             sizes="(min-width: 1152px) 528px, (min-width: 768px) 50vw, 100vw"
-            className="object-cover object-[60%_center]"
+            className="object-contain"
           />
           <p className="absolute right-5 bottom-5 left-5 rounded-lg bg-surface px-4 py-3 text-sm font-medium text-brand">
             A little detail. A whole new look.
