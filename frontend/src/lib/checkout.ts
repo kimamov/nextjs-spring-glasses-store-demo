@@ -24,7 +24,7 @@ export const CheckoutProblemSchema = v.object({
 export const CheckoutOrderSchema = v.object({
   ...CheckoutSummarySchema.entries,
   orderId: v.pipe(v.string(), v.uuid()),
-  status: v.literal("PENDING_PAYMENT"),
+  status: v.picklist(["PENDING_PAYMENT", "PAID"]),
   details: v.object({
     productId: v.pipe(v.string(), v.uuid()),
     firstName: v.string(),
@@ -36,6 +36,12 @@ export const CheckoutOrderSchema = v.object({
     city: v.string(),
     country: v.literal("DE"),
   }),
+});
+
+// REVIEW: Never redirect to an arbitrary URL returned by an upstream response.
+// This demo uses Stripe's hosted page, without custom payment domains.
+export const CheckoutSessionSchema = v.object({
+  url: v.pipe(v.string(), v.url(), v.regex(/^https:\/\/checkout\.stripe\.com\//)),
 });
 
 export type CheckoutFormState = {

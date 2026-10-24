@@ -28,10 +28,31 @@ reuse the same order per guest and product, while allowing address corrections.
 The server rejects expired orders after 24 hours; losing the cookie also loses
 access. Expired rows remain stored until a later retention/cleanup step.
 
-V7 creates the orders table without modifying catalog data. The next step is a
-Stripe sandbox Checkout Session created from the persisted order. No payment or
-paid-order transition is implemented. Temporary `REVIEW` comments explain this
-flow in the source and can be removed after review.
+V7 creates the orders table without modifying catalog data. V8 adds Stripe session
+tracking, payment attempt numbers and a monotonic `PENDING_PAYMENT` → `PAID` state.
+`POST /api/v1/checkout/sessions?productId=<id>` requires the guest token and creates
+a sandbox session from the fixed name/price snapshot, never client amounts. The
+order ID and attempt number form Stripe's idempotency key. Open sessions are
+reused; expired sessions get a new attempt. Mutable customer data is excluded from
+the Stripe request so changes cannot invalidate a retry's idempotency parameters.
+The saved address remains the delivery address; Stripe collects its billing email.
+
+Session creation briefly holds one order's row lock to serialize simultaneous
+starts and webhook updates. Network timeouts/retries are bounded. Split this into
+preparation/finalization transactions if real checkout traffic warrants it.
+
+The raw, signed `POST /api/v1/stripe/webhook` body is verified before processing.
+Only a paid sandbox session with matching order ID, stored session ID, attempt,
+amount, currency and payment mode can mark the order paid. Duplicate deliveries
+do not change its first payment timestamp. Delayed payment confirmations are
+recorded even after guest access expires. Unsupported/mismatched event API
+versions are rejected; webhook snapshots must match SDK 34.0.0's
+`2026-09-30.endive` API version.
+
+Return and cancel pages read the guest's database status. The return page polls
+briefly for webhook delivery; neither a success URL nor cancellation query flags
+can modify payment state. Temporary `REVIEW` comments remain for review. This is
+sandbox-only: there is no live charging, shipping fulfilment or refund handling.
 
 The glasses page streams its catalog section through Suspense. Catalog requests are
 explicitly uncached for now, with a five-second timeout and an honest unavailable

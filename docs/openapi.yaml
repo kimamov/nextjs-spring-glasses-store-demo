@@ -5,6 +5,69 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
+  /api/v1/checkout/sessions:
+    post:
+      operationId: startStripeCheckout
+      summary: Create or resume a Stripe sandbox session for the owned order
+      description: Uses the saved price snapshot and a stable order/attempt idempotency key. Reuses open sessions and replaces expired sessions. Does not mark the order paid.
+      parameters:
+        - $ref: '#/components/parameters/CheckoutToken'
+        - name: productId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Private Stripe-hosted URL; Cache-Control is no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url:
+                    type: string
+                    format: uri
+        '401':
+          description: Missing or malformed guest identity
+        '404':
+          description: No order belongs to this guest and product
+        '409':
+          description: Payment is complete or already confirmed; read order status
+        '410':
+          description: Checkout expired or too close to expiry to create a session
+        '422':
+          description: Unsupported currency or invalid payment amount
+        '502':
+          description: Stripe is temporarily unavailable; retry using the same order
+        '503':
+          description: Sandbox credentials are not configured
+  /api/v1/stripe/webhook:
+    post:
+      operationId: stripeWebhook
+      summary: Verify a signed sandbox event and record confirmed payment
+      description: Requires the unmodified JSON body and a matching Stripe SDK event API version. Validates the session/order reference, amount, currency, attempt, payment mode and sandbox state. Duplicate events are safe. Never marks an order paid from a browser redirect.
+      parameters:
+        - name: Stripe-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Event handled or intentionally ignored; duplicates acknowledged
+        '400':
+          description: Invalid signature, wrong API version, live event or mismatched payment
+        '503':
+          description: Webhook not configured or session not attached; delivery may be retried
   /api/v1/checkout/orders:
     post:
       operationId: savePendingCheckout
@@ -49,7 +112,7 @@ paths:
   /api/v1/checkout/orders/current:
     get:
       operationId: currentCheckout
-      summary: Restore this guest's pending order and address
+      summary: Restore this guest's order, payment status and address
       parameters:
         - $ref: '#/components/parameters/CheckoutToken'
         - name: productId
@@ -60,7 +123,7 @@ paths:
             format: uuid
       responses:
         '200':
-          description: Guest-owned pending order; Cache-Control is no-store
+          description: Guest-owned order; Cache-Control is no-store
           content:
             application/json:
               schema:
@@ -227,7 +290,7 @@ components:
           format: uuid
         status:
           type: string
-          enum: [PENDING_PAYMENT]
+          enum: [PENDING_PAYMENT, PAID]
         productId:
           type: string
           format: uuid

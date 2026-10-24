@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import * as v from "valibot";
 import { checkoutCookieName, CheckoutOrderSchema } from "./checkout";
 
-export async function getPendingOrder(productId: string) {
+export async function getCheckoutOrder(productId: string) {
   const token = (await cookies()).get(checkoutCookieName)?.value;
   if (!token) return null;
   const url = new URL("/api/v1/checkout/orders/current", process.env.BACKEND_URL ?? "http://localhost:8080");

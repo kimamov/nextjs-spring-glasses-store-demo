@@ -18,8 +18,11 @@ server-issued HttpOnly guest cookie allows the same browser to restore its saved
 details on reload; retries update the same pending order rather than creating
 duplicates. Java stores only a hash of the token and rejects access after 24 hours.
 Pending orders contain personal data in the local database; automatic deletion of
-expired rows is not implemented yet. No payment is taken. Accounts, lens
-configuration, and Stripe are not implemented yet.
+expired rows is not implemented yet. “Continue to payment” opens Stripe-hosted
+Checkout in a sandbox when test keys are configured. Only a verified matching
+payment webhook marks an order `PAID`; return/cancel pages cannot change payment
+state. Accounts, lens configuration, shipping fulfilment, and live payments are not
+implemented.
 The storefront uses nuqs for URL filters: glasses type (`cat`), comma-separated
 brands and shapes (`brand`, `shape`), and inclusive EUR price bounds (`minPrice`,
 `maxPrice`). For example, `/glasses?cat=sunglasses&shape=Round,Oval&maxPrice=100`.
@@ -60,13 +63,14 @@ Open http://localhost:3000. The backend is at http://localhost:8080.
 The backend waits for PostgreSQL; the frontend may briefly show an unavailable
 message while Spring starts. Reload after the backend is ready.
 
-The first startup creates the database and runs the seven tracked Flyway migrations
+The first startup creates the database and runs the eight tracked Flyway migrations
 automatically. They create the schema and seed all 60 fictional products and their
 240 image records. The 20 AI-generated image files are tracked in
 `frontend/public/images/products/` and included in the frontend container; no image
 download or database dump import is needed. Product IDs are stable across fresh
 installations. No `.env` file is required for the Docker setup.
 V7 adds the orders table without inserting any customer data.
+V8 adds Stripe session tracking and the paid state.
 
 Ports 3000, 8080, and 5432 must be available. If an existing container still serves
 older code after pulling changes, run `docker compose up -d --build` to rebuild
@@ -123,6 +127,49 @@ docker compose up -d --build
 Restore a full dump into an empty database, before starting Spring. Do not import
 it on top of the seeded database. The backend uses the restored Flyway history to
 apply only migrations newer than the snapshot.
+
+## Stripe sandbox setup (optional)
+
+The catalog and saved checkout work without Stripe credentials. Payment attempts
+show a retryable error until both test secrets are configured. The backend refuses
+live API keys; no publishable key or Stripe JavaScript dependency is needed for
+the hosted payment page.
+
+1. Create a Stripe sandbox and obtain its secret API key (`sk_test_...`).
+2. From the repository root, copy `.env.example` to `.env` and set `STRIPE_SECRET_KEY`.
+3. Install the [Stripe CLI](https://docs.stripe.com/cli), then run:
+
+   ```bash
+   stripe login
+   stripe listen --events checkout.session.completed,checkout.session.async_payment_succeeded --forward-to http://localhost:8080/api/v1/stripe/webhook
+   ```
+
+4. Copy the CLI's `whsec_...` signing secret into `STRIPE_WEBHOOK_SECRET` in `.env`.
+   Keep the listener running while testing. Configure snapshot events using API
+   version `2026-09-30.endive`, matching the pinned Stripe Java SDK 34.0.0. A version
+   mismatch is rejected rather than interpreting a payment payload incorrectly.
+5. Set `CHECKOUT_FRONTEND_URL` to the frontend origin you use in the browser:
+   `http://localhost:3000` for Docker or `http://localhost:3001` if your dev server
+   uses port 3001. This is not the backend URL.
+6. Run `docker compose up -d --build`. Recreate the backend after changing secrets:
+   `docker compose up -d --force-recreate backend`.
+
+For a backend started with Maven, export the same three variables in that terminal
+before starting it; Spring does not automatically load the repository's `.env`.
+The root `.env` is ignored by Git. Never commit keys or webhook payloads containing
+customer information.
+
+Try a checkout with Stripe's test card `4242 4242 4242 4242`, any future expiry,
+and any three-digit CVC. Use `4000 0000 0000 0002` to test a decline. Stripe collects
+its billing email; delivery/contact details remain in our saved order. The return
+page refreshes status for up to 30 seconds while waiting for the webhook and offers
+a manual refresh afterwards. Cancellation leaves the order pending and resumes
+the existing open Stripe session. Do not use real card data.
+
+See [Stripe testing](https://docs.stripe.com/testing) and
+[webhook setup](https://docs.stripe.com/webhooks). Automated tests use a local HTTP
+stub for SDK requests and real signature verification with a test secret; they do
+not claim to complete a payment on Stripe's hosted website.
 
 ## Run with hot reload
 

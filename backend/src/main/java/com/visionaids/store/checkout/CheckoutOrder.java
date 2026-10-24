@@ -28,12 +28,35 @@ class CheckoutOrder {
     private String country;
     private Instant createdAt;
     private Instant expiresAt;
+    private String stripeSessionId;
+    private int stripeAttempt;
+    private Instant paidAt;
 
     protected CheckoutOrder() {
     }
 
     boolean expired() {
         return !expiresAt.isAfter(Instant.now());
+    }
+
+    String sessionId() { return stripeSessionId; }
+    int attempt() { return stripeAttempt; }
+    Instant expiresAt() { return expiresAt; }
+    boolean paid() { return "PAID".equals(status); }
+    void attachSession(String id) { stripeSessionId = id; }
+
+    void nextAttempt() {
+        stripeAttempt++;
+        stripeSessionId = null;
+    }
+
+    void markPaid() {
+        // REVIEW: Re-delivering a webhook must not re-run a state transition or
+        // change the original payment timestamp. Fulfilment would use this guard too.
+        if (!paid()) {
+            status = "PAID";
+            paidAt = Instant.now();
+        }
     }
 
     CheckoutOrderDto toDto() {

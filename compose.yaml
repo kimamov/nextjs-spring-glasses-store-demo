@@ -20,6 +20,9 @@ services:
       DB_URL: jdbc:postgresql://db:5432/vision_aids
       DB_USERNAME: vision_aids
       DB_PASSWORD: vision_aids
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      CHECKOUT_FRONTEND_URL: ${CHECKOUT_FRONTEND_URL:-http://localhost:3000}
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

@@ -42,6 +42,18 @@ public class CheckoutController {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(checkout.current(token, productId));
     }
 
+    @PostMapping("/sessions")
+    public ResponseEntity<SessionLink> startPayment(@RequestParam UUID productId,
+            @RequestHeader(value = "X-Checkout-Token", required = false) String token) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(new SessionLink(checkout.startPayment(token, productId)));
+    }
+
+    public record SessionLink(String url) {
+        // REVIEW: The hosted URL is a bearer link. Keep it out of debug response logs.
+        @Override
+        public String toString() { return "SessionLink[redacted]"; }
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail invalidDetails(MethodArgumentNotValidException error) {
         Map<String, String> fields = new LinkedHashMap<>();

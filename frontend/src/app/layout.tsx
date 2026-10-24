@@ -22,7 +22,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         </header>
         <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-6 py-16 sm:px-12">{children}</main>
         <footer className="border-t border-divider px-6 py-8 text-center text-sm text-muted">
-          A learning project. Fictional products. No purchases or payments.
+          A learning project. Fictional products. Sandbox payments only; no real purchases.
         </footer>
       </body>
     </html>

@@ -17,6 +17,13 @@ logging:
   level:
     # Validation exception messages contain rejected personal details at DEBUG.
     org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver: INFO
+    # REVIEW: Stripe's raw webhook JSON can include billing details. Never log bodies.
+    org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor: INFO
+checkout:
+  frontend-url: ${CHECKOUT_FRONTEND_URL:http://localhost:3000}
+  stripe:
+    secret-key: ${STRIPE_SECRET_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
 management:
   endpoints:
     web:

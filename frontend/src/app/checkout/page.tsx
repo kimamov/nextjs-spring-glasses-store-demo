@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProduct, ProductNotFoundError } from "@/lib/catalog";
-import { getPendingOrder } from "@/lib/checkout-server";
+import { getCheckoutOrder } from "@/lib/checkout-server";
 import { ProductThumbnail } from "../glasses/product-thumbnail";
 import { RefreshCatalog } from "../glasses/refresh-catalog";
 import { CheckoutForm } from "./checkout-form";
@@ -15,7 +15,7 @@ export default async function CheckoutPage({ searchParams }: {
   let order;
   try {
     product = await getProduct(productId);
-    order = await getPendingOrder(product.id);
+    order = await getCheckoutOrder(product.id);
   } catch (error) {
     if (error instanceof ProductNotFoundError) notFound();
     // REVIEW: A failed response-schema check can contain the submitted address.

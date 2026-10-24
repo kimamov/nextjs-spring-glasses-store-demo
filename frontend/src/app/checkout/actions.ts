@@ -3,7 +3,9 @@
 import * as v from "valibot";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { checkoutCookieName, checkoutFields, CheckoutProblemSchema, CheckoutOrderSchema, type CheckoutFormState } from "@/lib/checkout";
+import { redirect } from "next/navigation";
+import { checkoutCookieName, checkoutFields, CheckoutProblemSchema, CheckoutOrderSchema, CheckoutSessionSchema, type CheckoutFormState } from "@/lib/checkout";
+import { getCheckoutOrder } from "@/lib/checkout-server";
 
 export async function saveCheckout(
   productId: string,
@@ -14,6 +16,8 @@ export async function saveCheckout(
     const value = formData.get(name);
     return [name, typeof value === "string" ? value.trim() : ""];
   }));
+  let destination: string;
+  let savedOrder: CheckoutFormState["order"];
 
   try {
     // REVIEW: Never accept an order ID or guest token from the form. An attacker
@@ -41,16 +45,42 @@ export async function saveCheckout(
       cookieStore.set(checkoutCookieName, "", { path: "/checkout", maxAge: 0 });
       return { values, message: "This checkout has expired. Refresh the page to start again." };
     }
-    if (response.status === 409) return { values, message: "This checkout can no longer be changed. Start a new checkout." };
+    if (response.status === 409) {
+      const current = await getCheckoutOrder(productId);
+      return { values, order: current ?? undefined, message: current?.status === "PAID" ? "Payment already confirmed." : "This checkout can no longer be changed." };
+    }
     if (!response.ok) throw new Error(`Checkout save failed: ${response.status}`);
     // REVIEW: A successful response means the database transaction committed.
     // It means "pending order saved", never "payment received".
     const order = v.parse(CheckoutOrderSchema, await response.json());
+    savedOrder = order;
     // REVIEW: Refresh the server-rendered summary as well as the form result.
     // A price changed since the page opened must not leave two different totals.
     revalidatePath("/checkout");
-    return { values, order };
+    const sessionUrl = new URL("/api/v1/checkout/sessions", process.env.BACKEND_URL ?? "http://localhost:8080");
+    sessionUrl.searchParams.set("productId", productId);
+    const session = await fetch(sessionUrl, {
+      method: "POST",
+      headers: { "X-Checkout-Token": token },
+      cache: "no-store",
+      // REVIEW: Session creation may include one network retry. The stable
+      // backend idempotency key also protects a retry after this timeout.
+      signal: AbortSignal.timeout(20000),
+    });
+    if (session.status === 409) {
+      destination = `/checkout/return?productId=${encodeURIComponent(productId)}`;
+    } else if (session.status === 410) {
+      cookieStore.set(checkoutCookieName, "", { path: "/checkout", maxAge: 0 });
+      return { values, message: "This checkout has expired. Refresh the page to start again." };
+    } else if (!session.ok) {
+      return { values, order, message: "Payment is temporarily unavailable. Your checkout is saved; please try again." };
+    } else {
+      destination = v.parse(CheckoutSessionSchema, await session.json()).url;
+    }
   } catch {
-    return { values, message: "We couldn’t confirm your checkout was saved. Please try again; a retry won’t create a duplicate." };
+    return { values, order: savedOrder, message: "We couldn’t open payment. Please try again; a retry won’t create a duplicate." };
   }
+  // REVIEW: redirect throws a Next.js control-flow exception. Keep it outside the
+  // catch above, otherwise a successful redirect is mistaken for a payment failure.
+  redirect(destination);
 }

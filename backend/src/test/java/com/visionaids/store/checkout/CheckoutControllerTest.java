@@ -71,6 +71,16 @@ class CheckoutControllerTest {
     }
 
     @Test
+    void startsPaymentUsingOnlyTheOwnedProductAndReturnsAnUncachedLink() throws Exception {
+        when(checkout.startPayment(TOKEN, PRODUCT_ID)).thenReturn("https://checkout.stripe.com/c/pay/cs_test_one");
+        mvc.perform(post("/api/v1/checkout/sessions").param("productId", PRODUCT_ID.toString()).header("X-Checkout-Token", TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.url").value("https://checkout.stripe.com/c/pay/cs_test_one"));
+        verify(checkout).startPayment(TOKEN, PRODUCT_ID);
+    }
+
+    @Test
     void returnsFieldErrorsForInvalidDetailsWithoutEchoingRejectedValues() throws Exception {
         Map<String, String> invalid = Map.of("firstName", " ", "lastName", "", "email", "not-an-email",
                 "street", "", "postalCode", "1234", "city", "", "country", "US", "addressLine2", "x".repeat(201));

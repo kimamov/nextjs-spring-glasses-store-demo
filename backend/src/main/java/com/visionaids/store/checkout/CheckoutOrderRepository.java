@@ -6,12 +6,22 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.repository.query.Param;
 
 interface CheckoutOrderRepository extends JpaRepository<CheckoutOrder, UUID> {
     // REVIEW: Every read includes the secret's hash. Knowing an order/product ID
     // alone does not authorize reading the stored customer details.
     Optional<CheckoutOrder> findByCheckoutTokenHashAndProductId(String tokenHash, UUID productId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select o from CheckoutOrder o where o.checkoutTokenHash = :tokenHash and o.productId = :productId")
+    Optional<CheckoutOrder> lockOwned(@Param("tokenHash") String tokenHash, @Param("productId") UUID productId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select o from CheckoutOrder o where o.id = :id")
+    Optional<CheckoutOrder> lockById(@Param("id") UUID id);
 
     // REVIEW: PostgreSQL makes this one atomic operation. A concurrent retry waits
     // for the first insert and then updates that same row instead of creating another.
