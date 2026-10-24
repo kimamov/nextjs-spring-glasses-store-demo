@@ -5,11 +5,13 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
-  /api/v1/checkout/validate:
+  /api/v1/checkout/orders:
     post:
-      operationId: validateCheckout
-      summary: Validate guest checkout details and return the current price
-      description: One frame with free demo shipping within Germany. Does not save personal data, create orders, or initiate payment. Totals are read from the catalog, not accepted from the client.
+      operationId: savePendingCheckout
+      summary: Save or update a guest's pending order
+      description: One frame with free demo shipping within Germany. First save snapshots the catalog name/price; retries preserve the snapshot and update contact/address details. An atomic upsert reuses the order per guest/product. No payment is taken.
+      parameters:
+        - $ref: '#/components/parameters/CheckoutToken'
       requestBody:
         required: true
         content:
@@ -18,11 +20,11 @@ paths:
               $ref: '#/components/schemas/CheckoutRequest'
       responses:
         '200':
-          description: Details are valid; current product total
+          description: Pending order committed; private details must not be cached
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CheckoutSummaryDto'
+                $ref: '#/components/schemas/CheckoutOrderDto'
         '400':
           description: Invalid details or malformed request; field validation failures include an errors map
           content:
@@ -38,6 +40,37 @@ paths:
                       type: string
         '404':
           description: Selected product no longer exists
+        '401':
+          description: Missing or malformed checkout identity
+        '409':
+          description: Order can no longer be modified
+        '410':
+          description: Pending order expired
+  /api/v1/checkout/orders/current:
+    get:
+      operationId: currentCheckout
+      summary: Restore this guest's pending order and address
+      parameters:
+        - $ref: '#/components/parameters/CheckoutToken'
+        - name: productId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Guest-owned pending order; Cache-Control is no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutOrderDto'
+        '401':
+          description: Missing or malformed checkout identity
+        '404':
+          description: No pending order belongs to this guest and product
+        '410':
+          description: Pending order expired
   /api/v1/products:
     get:
       operationId: listProducts
@@ -138,6 +171,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProductFilterOptionsDto'
 components:
+  parameters:
+    CheckoutToken:
+      name: X-Checkout-Token
+      in: header
+      required: true
+      description: Secret random token forwarded by Next.js from the HttpOnly guest cookie. Never put it in a URL or log it. Order access expires after 24 hours.
+      schema:
+        type: string
+        pattern: '^[a-f0-9]{64}$'
   schemas:
     CheckoutRequest:
       type: object
@@ -176,10 +218,16 @@ components:
         country:
           type: string
           enum: [DE]
-    CheckoutSummaryDto:
+    CheckoutOrderDto:
       type: object
-      required: [productId, productName, total, currency]
+      required: [orderId, status, productId, productName, total, currency, details]
       properties:
+        orderId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING_PAYMENT]
         productId:
           type: string
           format: uuid
@@ -188,10 +236,12 @@ components:
         total:
           type: number
           minimum: 0
-          description: Price of one frame, including free demo shipping
+          description: Snapshotted price of one frame, including free demo shipping
         currency:
           type: string
           example: EUR
+        details:
+          $ref: '#/components/schemas/CheckoutRequest'
     ProductFilterOptionsDto:
       type: object
       required: [types, brands, shapes]

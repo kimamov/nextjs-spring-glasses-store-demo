@@ -14,11 +14,24 @@ configuration is necessary for this request flow.
 
 Guest checkout follows the same boundary: `/checkout?productId=<id>` loads the
 selected product on the server, and its form submits through a Server Action to
-Java's `POST /api/v1/checkout/validate`. Java validates German delivery details
-and returns a summary using the current catalog price for one frame with free
-demo shipping. Only the product ID appears in the URL. Personal details stay in
-the form/action request, are not persisted, and are omitted from API responses.
-The next step is pending-order persistence, followed by Stripe sandbox Checkout.
+Java's `POST /api/v1/checkout/orders`. Java validates German delivery details and
+saves a pending order for one frame with free demo shipping. Name and price are
+snapshotted from the catalog on the first save and preserved on retries.
+
+Next.js `proxy.ts` issues a 256-bit HttpOnly guest cookie before the first save.
+Server Components/Actions forward it to Java in `X-Checkout-Token`; Java stores
+only its SHA-256 hash. `GET /api/v1/checkout/orders/current?productId=<id>` restores
+details only for that guest. Neither raw tokens nor personal details appear in
+URLs or browser storage. Address responses use `Cache-Control: no-store`.
+A database unique constraint and atomic upsert make concurrent/repeated saves
+reuse the same order per guest and product, while allowing address corrections.
+The server rejects expired orders after 24 hours; losing the cookie also loses
+access. Expired rows remain stored until a later retention/cleanup step.
+
+V7 creates the orders table without modifying catalog data. The next step is a
+Stripe sandbox Checkout Session created from the persisted order. No payment or
+paid-order transition is implemented. Temporary `REVIEW` comments explain this
+flow in the source and can be removed after review.
 
 The glasses page streams its catalog section through Suspense. Catalog requests are
 explicitly uncached for now, with a five-second timeout and an honest unavailable

@@ -1,33 +1,45 @@
 package com.visionaids.store.checkout;
 
-import com.visionaids.store.catalog.CatalogService;
-import com.visionaids.store.catalog.ProductDetailDto;
 import jakarta.validation.Valid;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/v1/checkout")
 public class CheckoutController {
-    private final CatalogService catalog;
+    private final CheckoutService checkout;
 
-    public CheckoutController(CatalogService catalog) {
-        this.catalog = catalog;
+    public CheckoutController(CheckoutService checkout) {
+        this.checkout = checkout;
     }
 
-    @PostMapping("/validate")
-    public CheckoutSummaryDto validate(@Valid @RequestBody CheckoutRequest request) {
-        ProductDetailDto product = catalog.getProduct(request.productId());
-        return new CheckoutSummaryDto(product.id(), product.name(), product.price(), product.currency());
+    @PostMapping("/orders")
+    public ResponseEntity<CheckoutOrderDto> savePending(@Valid @RequestBody CheckoutRequest request,
+            @RequestHeader(value = "X-Checkout-Token", required = false) String token) {
+        // REVIEW: Next.js reads the HttpOnly cookie and forwards it server-to-server.
+        // The response can contain an address, so it must never enter a shared cache.
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(checkout.savePending(token, request));
+    }
+
+    @GetMapping("/orders/current")
+    public ResponseEntity<CheckoutOrderDto> current(@RequestParam UUID productId,
+            @RequestHeader(value = "X-Checkout-Token", required = false) String token) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(checkout.current(token, productId));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

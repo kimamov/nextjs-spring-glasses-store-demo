@@ -4,10 +4,12 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/button";
 import { Input } from "@/components/input";
 import type { CheckoutFormState } from "@/lib/checkout";
-import { validateCheckout } from "./actions";
+import { saveCheckout } from "./actions";
 
-export function CheckoutForm({ productId }: { productId: string }) {
-  const [state, action, pending] = useActionState<CheckoutFormState, FormData>(validateCheckout.bind(null, productId), {});
+export function CheckoutForm({ productId, initialState }: { productId: string; initialState: CheckoutFormState }) {
+  // REVIEW: The server restores only the order belonging to this browser's cookie.
+  // This keeps an ordinary page reload from discarding a saved address.
+  const [state, action, pending] = useActionState<CheckoutFormState, FormData>(saveCheckout.bind(null, productId), initialState);
   const [edited, setEdited] = useState(false);
 
   return (
@@ -52,12 +54,12 @@ export function CheckoutForm({ productId }: { productId: string }) {
           {state.errors?.country && <span id="country-error" className="text-red-700">{state.errors.country}</span>}
         </label>
       </fieldset>
-      <p className="mt-6 text-sm text-muted">Demo checkout. Your details are checked but aren’t saved. No order or payment is created.</p>
-      <Button type="submit" disabled={pending} className="mt-6 w-full sm:w-auto">{pending ? "Checking…" : "Check details"}</Button>
+      <p className="mt-6 text-sm text-muted">Demo checkout. Saving creates a pending order and stores your delivery details. No payment is taken.</p>
+      <Button type="submit" disabled={pending} className="mt-6 w-full sm:w-auto">{pending ? "Saving…" : "Save checkout"}</Button>
       {state.message && <p role="alert" className="mt-4 text-sm">{state.message}</p>}
-      {state.summary && !edited && (
+      {state.order && !edited && (
         <p role="status" className="mt-4 text-sm text-brand">
-          Your details are valid. The current total for {state.summary.productName} is {new Intl.NumberFormat("de-DE", { style: "currency", currency: state.summary.currency }).format(state.summary.total)}.
+          Pending order saved for {state.order.productName}. Total: {new Intl.NumberFormat("de-DE", { style: "currency", currency: state.order.currency }).format(state.order.total)}.
           {" "}Payment is not available yet.
         </p>
       )}

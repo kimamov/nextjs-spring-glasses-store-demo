@@ -1,10 +1,7 @@
 package com.visionaids.store.checkout;
 
-import com.visionaids.store.catalog.CatalogService;
-import com.visionaids.store.catalog.ProductDetailDto;
 import java.math.BigDecimal;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -22,6 +19,10 @@ import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -31,25 +32,42 @@ class CheckoutControllerTest {
 
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper json;
-    @MockitoBean private CatalogService catalog;
+    @MockitoBean private CheckoutService checkout;
+    private static final String TOKEN = "a".repeat(64);
 
     @Test
-    void validatesDetailsAndUsesTheCatalogPriceWithoutReturningPersonalData() throws Exception {
-        when(catalog.getProduct(PRODUCT_ID)).thenReturn(new ProductDetailDto(PRODUCT_ID, "mitte", "Mitte",
-                "Vision Aids", "eyeglasses", "Round", "Black", new BigDecimal("89.00"), "EUR",
-                null, List.of(), List.of()));
+    void savesAuthenticatedCheckoutAndPreventsCaching() throws Exception {
+        when(checkout.savePending(eq(TOKEN), any())).thenReturn(order());
         Map<String, Object> request = validRequest();
         request.put("total", 0.01);
-        request.put("quantity", 99);
-        mvc.perform(post("/api/v1/checkout/validate").contentType("application/json").content(json.writeValueAsString(request)))
+        mvc.perform(post("/api/v1/checkout/orders").header("X-Checkout-Token", TOKEN)
+                        .contentType("application/json").content(json.writeValueAsString(request)))
                 .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.productId").value(PRODUCT_ID.toString()))
-                .andExpect(jsonPath("$.productName").value("Mitte"))
+                .andExpect(jsonPath("$.status").value("PENDING_PAYMENT"))
                 .andExpect(jsonPath("$.total").value(89.00))
-                .andExpect(jsonPath("$.currency").value("EUR"))
-                .andExpect(jsonPath("$.email").doesNotExist())
-                .andExpect(jsonPath("$.street").doesNotExist());
-        verify(catalog).getProduct(PRODUCT_ID);
+                .andExpect(jsonPath("$.checkoutTokenHash").doesNotExist());
+        verify(checkout).savePending(eq(TOKEN), any());
+    }
+
+    @Test
+    void readsTheCurrentOrderOnlyThroughTheCheckoutIdentity() throws Exception {
+        when(checkout.current(TOKEN, PRODUCT_ID)).thenReturn(order());
+        mvc.perform(get("/api/v1/checkout/orders/current").param("productId", PRODUCT_ID.toString())
+                        .header("X-Checkout-Token", TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.details.email").value("ada@example.com"));
+        verify(checkout).current(TOKEN, PRODUCT_ID);
+    }
+
+    @Test
+    void missingCheckoutIdentityIsUnauthorized() throws Exception {
+        when(checkout.savePending(isNull(), any())).thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        mvc.perform(post("/api/v1/checkout/orders").contentType("application/json")
+                        .content(json.writeValueAsString(validRequest())))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -59,13 +77,13 @@ class CheckoutControllerTest {
         for (var field : invalid.entrySet()) {
             Map<String, Object> request = validRequest();
             request.put(field.getKey(), field.getValue());
-            mvc.perform(post("/api/v1/checkout/validate").contentType("application/json").content(json.writeValueAsString(request)))
+            mvc.perform(post("/api/v1/checkout/orders").contentType("application/json").content(json.writeValueAsString(request)))
                     .andExpect(status().isBadRequest())
                     .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                     .andExpect(jsonPath("$.errors." + field.getKey()).isString())
                     .andExpect(content().string(not(containsString("ada@example.com"))));
         }
-        verifyNoInteractions(catalog);
+        verifyNoInteractions(checkout);
     }
 
     @Test
@@ -73,16 +91,16 @@ class CheckoutControllerTest {
         for (Object id : new Object[] { null, "mitte" }) {
             Map<String, Object> request = validRequest();
             request.put("productId", id);
-            mvc.perform(post("/api/v1/checkout/validate").contentType("application/json").content(json.writeValueAsString(request)))
+            mvc.perform(post("/api/v1/checkout/orders").contentType("application/json").content(json.writeValueAsString(request)))
                     .andExpect(status().isBadRequest());
         }
-        verifyNoInteractions(catalog);
+        verifyNoInteractions(checkout);
     }
 
     @Test
     void returnsNotFoundWhenTheSelectedProductWasRemoved() throws Exception {
-        when(catalog.getProduct(PRODUCT_ID)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found."));
-        mvc.perform(post("/api/v1/checkout/validate").contentType("application/json").content(json.writeValueAsString(validRequest())))
+        when(checkout.savePending(isNull(), any())).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found."));
+        mvc.perform(post("/api/v1/checkout/orders").contentType("application/json").content(json.writeValueAsString(validRequest())))
                 .andExpect(status().isNotFound());
     }
 
@@ -91,6 +109,11 @@ class CheckoutControllerTest {
         CheckoutRequest request = new CheckoutRequest(PRODUCT_ID, "Ada", "Lovelace", "ada@example.com",
                 "Example Street 1", "", "10115", "Berlin", "DE");
         assertThat(request.toString()).doesNotContain("Ada", "Lovelace", "ada@example.com", "Example Street", "Berlin");
+    }
+
+    private CheckoutOrderDto order() {
+        return new CheckoutOrderDto(UUID.randomUUID(), "PENDING_PAYMENT", PRODUCT_ID, "Mitte", new BigDecimal("89.00"), "EUR",
+                new CheckoutRequest(PRODUCT_ID, "Ada", "Lovelace", "ada@example.com", "Example Street 1", "", "10115", "Berlin", "DE"));
     }
 
     private Map<String, Object> validRequest() {

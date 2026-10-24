@@ -12,10 +12,14 @@ in supported browsers, with reduced-motion preferences respected.
 The detail page links to `/checkout?productId=<id>` for a guest checkout form and
 order summary. This first step supports one frame, delivery in Germany, and free
 demo shipping. “Check details” sends the form through a Next.js Server Action to
-`POST /api/v1/checkout/validate`. Java validates the contact/address fields and
-reloads the product price. Details are not persisted and no order or payment is
-created. Accounts, lens configuration, Stripe, and order persistence are not
-implemented yet.
+`POST /api/v1/checkout/orders`. Java validates the contact/address fields and saves
+a `PENDING_PAYMENT` order with the catalog name/price as a fixed snapshot. A
+server-issued HttpOnly guest cookie allows the same browser to restore its saved
+details on reload; retries update the same pending order rather than creating
+duplicates. Java stores only a hash of the token and rejects access after 24 hours.
+Pending orders contain personal data in the local database; automatic deletion of
+expired rows is not implemented yet. No payment is taken. Accounts, lens
+configuration, and Stripe are not implemented yet.
 The storefront uses nuqs for URL filters: glasses type (`cat`), comma-separated
 brands and shapes (`brand`, `shape`), and inclusive EUR price bounds (`minPrice`,
 `maxPrice`). For example, `/glasses?cat=sunglasses&shape=Round,Oval&maxPrice=100`.
@@ -56,12 +60,13 @@ Open http://localhost:3000. The backend is at http://localhost:8080.
 The backend waits for PostgreSQL; the frontend may briefly show an unavailable
 message while Spring starts. Reload after the backend is ready.
 
-The first startup creates the database and runs the six tracked Flyway migrations
+The first startup creates the database and runs the seven tracked Flyway migrations
 automatically. They create the schema and seed all 60 fictional products and their
 240 image records. The 20 AI-generated image files are tracked in
 `frontend/public/images/products/` and included in the frontend container; no image
 download or database dump import is needed. Product IDs are stable across fresh
 installations. No `.env` file is required for the Docker setup.
+V7 adds the orders table without inserting any customer data.
 
 Ports 3000, 8080, and 5432 must be available. If an existing container still serves
 older code after pulling changes, run `docker compose up -d --build` to rebuild
@@ -175,8 +180,10 @@ mvn verify
 ```
 
 The controller tests run without a database. The backend Docker build also runs
-them. With PostgreSQL running, `CATALOG_DB_TESTS=true mvn verify` also runs database
-filter tests; their fixture changes roll back. A complete smoke check needs PostgreSQL and both running applications:
+them. With PostgreSQL running, `CATALOG_DB_TESTS=true mvn verify` also runs catalog
+and checkout database tests. Catalog fixtures roll back; checkout tests remove
+their own committed fixtures after testing concurrent writes.
+A complete smoke check needs PostgreSQL and both running applications:
 the API should return 60 frames (15 per type), and the storefront should show
 their names, types, and prices. Unsupported `cat` values return HTTP 400.
 No mock catalog is substituted when the backend is unavailable.
